@@ -1,0 +1,825 @@
+﻿@page "/"
+@using Entities
+@using DAL
+@rendermode InteractiveServer
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background: linear-gradient(135deg, #0a0e27 0%, #0f1235 100%);
+        min-height: 100vh;
+        color: #e2e8f0;
+    }
+
+    .main-navbar {
+        background: rgba(8, 12, 26, 0.95);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(124, 58, 237, 0.3);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .navbar-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0.8rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1.4rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #c084fc, #7c3aed);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+        .navbar-brand i {
+            font-size: 1.8rem;
+            color: #7c3aed;
+        }
+
+    .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: #c084fc;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    .navbar-links {
+        display: flex;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+    }
+
+    .nav-link {
+        color: #94a3b8;
+        text-decoration: none;
+        padding: 0.5rem 1.2rem;
+        border-radius: 40px;
+        transition: all 0.3s;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+        .nav-link:hover {
+            color: #c084fc;
+            background: rgba(124, 58, 237, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .nav-link.active {
+            background: linear-gradient(135deg, #7c3aed, #c084fc);
+            color: white;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+        }
+
+    .admin-btn {
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        border: none;
+        padding: 8px 24px;
+        border-radius: 40px;
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s;
+        font-size: 14px;
+    }
+
+        .admin-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+        }
+
+    .home-page {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 2rem;
+    }
+
+    .hero-section {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: rgba(15, 18, 53, 0.7);
+        backdrop-filter: blur(12px);
+        border-radius: 32px;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(124, 58, 237, 0.3);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .hero-icon {
+        width: 90px;
+        height: 90px;
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        border-radius: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.2rem;
+        box-shadow: 0 0 25px rgba(124, 58, 237, 0.5);
+    }
+
+        .hero-icon i {
+            font-size: 48px;
+            color: white;
+        }
+
+    .hero-section h1 {
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #c084fc, #7c3aed, #06b6d4);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin-bottom: 0.75rem;
+    }
+
+    .hero-section p {
+        font-size: 1.15rem;
+        color: #94a3b8;
+        margin-bottom: 1.8rem;
+    }
+
+    .hero-badges {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .badge {
+        background: rgba(124, 58, 237, 0.15);
+        padding: 0.5rem 1.3rem;
+        border-radius: 60px;
+        color: #c084fc;
+        font-size: 0.85rem;
+        font-weight: 500;
+        border: 1px solid rgba(124, 58, 237, 0.3);
+    }
+
+    .welcome-card {
+        background: rgba(15, 18, 53, 0.7);
+        backdrop-filter: blur(12px);
+        padding: 2rem;
+        border-radius: 28px;
+        margin-bottom: 2rem;
+        border-left: 5px solid #7c3aed;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+    }
+
+        .welcome-card h3 {
+            color: #c084fc;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+
+            .welcome-card h3 i {
+                color: #7c3aed;
+                font-size: 1.8rem;
+            }
+
+        .welcome-card p {
+            color: #94a3b8;
+            line-height: 1.65;
+            font-size: 1rem;
+        }
+
+    .signature {
+        text-align: right;
+        color: #7c3aed;
+        margin-top: 1rem;
+        font-style: italic;
+        font-weight: 500;
+    }
+
+    .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.8rem;
+        margin-bottom: 2rem;
+    }
+
+    .info-card {
+        background: rgba(15, 18, 53, 0.7);
+        backdrop-filter: blur(12px);
+        padding: 1.8rem;
+        border-radius: 28px;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+    }
+
+        .info-card:hover {
+            transform: translateY(-6px);
+            border-color: #7c3aed;
+            box-shadow: 0 20px 35px rgba(124, 58, 237, 0.2);
+        }
+
+    .card-icon {
+        width: 56px;
+        height: 56px;
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.2rem;
+    }
+
+        .card-icon i {
+            font-size: 28px;
+            color: white;
+        }
+
+    .info-card h4 {
+        color: #c084fc;
+        margin-bottom: 0.75rem;
+        font-size: 1.4rem;
+        font-weight: 700;
+    }
+
+    .info-card p {
+        color: #94a3b8;
+        line-height: 1.5;
+    }
+
+    .tags {
+        margin-top: 1rem;
+        color: #7c3aed;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .footer {
+        text-align: center;
+        padding: 2rem 0 0.5rem;
+        color: #64748b;
+        font-size: 0.85rem;
+        border-top: 1px dashed rgba(124, 58, 237, 0.3);
+        margin-top: 1rem;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(12px);
+        z-index: 1001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-container {
+        background: linear-gradient(135deg, #0f1235, #0a0e27);
+        border-radius: 32px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 85vh;
+        overflow-y: auto;
+        border: 1px solid rgba(124, 58, 237, 0.4);
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        padding: 1.2rem 1.8rem;
+        border-radius: 32px 32px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header-content {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .modal-header-icon {
+        width: 45px;
+        height: 45px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .modal-header-icon i {
+            font-size: 24px;
+            color: white;
+        }
+
+    .modal-header-text h3 {
+        color: white;
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .modal-header-text p {
+        color: rgba(255, 255, 255, 0.8);
+        margin: 0;
+        font-size: 0.75rem;
+    }
+
+    .modal-close {
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        cursor: pointer;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: rotate(90deg);
+        }
+
+    .modal-body {
+        padding: 1.8rem;
+    }
+
+    .login-box {
+        text-align: center;
+    }
+
+    .login-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        border-radius: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+    }
+
+        .login-icon i {
+            font-size: 40px;
+            color: white;
+        }
+
+    .login-box h4 {
+        color: #c084fc;
+        margin-bottom: 0.3rem;
+    }
+
+    .login-box p {
+        color: #94a3b8;
+        font-size: 0.85rem;
+        margin-bottom: 1.6rem;
+    }
+
+    .input-group {
+        display: flex;
+        align-items: center;
+        background: rgba(15, 18, 53, 0.8);
+        border: 1px solid rgba(124, 58, 237, 0.3);
+        border-radius: 16px;
+        margin-bottom: 1rem;
+    }
+
+        .input-group:focus-within {
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+        }
+
+        .input-group i {
+            padding: 0 14px;
+            color: #c084fc;
+            font-size: 18px;
+        }
+
+    .form-input {
+        flex: 1;
+        padding: 12px 12px 12px 0;
+        border: none;
+        border-radius: 16px;
+        font-size: 14px;
+        font-family: 'Inter', sans-serif;
+        background: transparent;
+        color: #e2e8f0;
+    }
+
+        .form-input:focus {
+            outline: none;
+        }
+
+    textarea.form-input {
+        padding: 12px;
+        border: 1px solid rgba(124, 58, 237, 0.3);
+        border-radius: 16px;
+        resize: vertical;
+        background: rgba(15, 18, 53, 0.8);
+    }
+
+    .btn-login, .btn-update, .btn-refresh {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        border: none;
+        border-radius: 16px;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+
+        .btn-login:hover, .btn-update:hover, .btn-refresh:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(124, 58, 237, 0.4);
+        }
+
+    .admin-status {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(124, 58, 237, 0.3);
+    }
+
+        .admin-status i {
+            font-size: 24px;
+            color: #c084fc;
+        }
+
+        .admin-status span {
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+    .admin-badge {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .form-group {
+        margin-bottom: 1.2rem;
+    }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+            .form-group label i {
+                margin-right: 5px;
+                color: #c084fc;
+            }
+
+    .info-card-mini {
+        background: rgba(124, 58, 237, 0.1);
+        padding: 12px;
+        border-radius: 16px;
+        margin: 1rem 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        color: #c084fc;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.2rem;
+        flex-wrap: wrap;
+    }
+
+    .error-text {
+        color: #f87171;
+        font-size: 13px;
+        margin-top: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        justify-content: center;
+    }
+
+    .success-text {
+        color: #34d399;
+        font-size: 13px;
+        margin-top: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        justify-content: center;
+    }
+
+    @@media (max-width: 1000px) {
+        .mobile-menu-btn
+
+    {
+        display: block;
+    }
+
+    .navbar-links {
+        display: none;
+        position: absolute;
+        top: 70px;
+        left: 0;
+        right: 0;
+        background: rgba(8, 12, 26, 0.98);
+        flex-direction: column;
+        padding: 20px;
+        gap: 15px;
+        border-bottom: 1px solid #7c3aed;
+        z-index: 100;
+    }
+
+        .navbar-links.show {
+            display: flex;
+        }
+
+    .nav-link {
+        padding: 10px 0;
+        text-align: center;
+    }
+
+    .admin-btn {
+        margin-left: auto;
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .home-page
+
+    {
+        padding: 0 1rem 2rem;
+    }
+
+    .hero-section h1 {
+        font-size: 2rem;
+    }
+
+    .two-col {
+        grid-template-columns: 1fr;
+    }
+
+    .navbar-container {
+        padding: 12px 16px;
+    }
+
+    .modal-container {
+        width: 95%;
+    }
+
+    }
+</style>
+
+<div class="main-navbar">
+    <div class="navbar-container">
+        <div class="navbar-brand">
+            <i class="bi bi-hospital-fill"></i>
+            <span>Medical Society</span>
+        </div>
+        <button class="mobile-menu-btn" @onclick="ToggleMobileMenu">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="navbar-links @(mobileMenuOpen ? "show" : "")">
+            <a href="/" class="nav-link active">Home</a>
+            <a href="/leadership" class="nav-link">Leadership</a>
+            <a href="/cabinet" class="nav-link">Cabinet</a>
+            <a href="/annualprogram" class="nav-link">Annual Programs</a>
+            <a href="/annualgathering" class="nav-link">Annual Gathering</a>
+            <a href="/past-presidents" class="nav-link">Past Presidents</a>
+            <a href="/objectives" class="nav-link">Objectives</a>
+        </div>
+        <button class="admin-btn" @onclick="ToggleModal">
+            <i class="bi bi-shield-lock-fill"></i> Admin
+        </button>
+    </div>
+</div>
+
+<div class="home-page">
+    <div class="hero-section">
+        <div class="hero-icon"><i class="bi bi-hospital-fill"></i></div>
+        <h1>@(societyData?.SocietyName ?? "Medical Society of Excellence")</h1>
+        <p>Premium Healthcare Community · Excellence in Medicine</p>
+        <div class="hero-badges">
+            <span class="badge">🏥 Community First</span>
+            <span class="badge">⭐ Excellence Driven</span>
+            <span class="badge">🌍 Global Impact</span>
+        </div>
+    </div>
+
+    <div class="welcome-card">
+        <h3><i class="bi bi-megaphone-fill"></i> Welcome Message</h3>
+        <p>@(societyData?.Message ?? "Advancing medical frontiers with compassion and innovation.")</p>
+        <div class="signature">— The Medical Society Team</div>
+    </div>
+
+    <div class="two-col">
+        <div class="info-card">
+            <div class="card-icon"><i class="bi bi-graph-up"></i></div>
+            <h4>Our Aims</h4>
+            <p>@(societyData?.Aims ?? "Foster research, elevate clinical standards, support education, and build global medical alliances.")</p>
+            <div class="tags">#innovation #growth #excellence</div>
+        </div>
+        <div class="info-card">
+            <div class="card-icon"><i class="bi bi-eye"></i></div>
+            <h4>Our Vision</h4>
+            <p>@(societyData?.Vision ?? "A world where equitable, cutting-edge healthcare is accessible to every community.")</p>
+            <div class="tags">#future #impact #healthcare</div>
+        </div>
+    </div>
+    <div class="footer">· join the movement · advance healthcare · save lives ·</div>
+</div>
+
+@if (showModal)
+{
+    <div class="modal-overlay" @onclick="CloseModalOnOverlay">
+        <div class="modal-container" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div class="modal-header-content">
+                    <div class="modal-header-icon"><i class="bi bi-shield-lock-fill"></i></div>
+                    <div class="modal-header-text">
+                        <h3>Admin Control Panel</h3>
+                        <p>Manage your homepage content</p>
+                    </div>
+                </div>
+                <button class="modal-close" @onclick="ToggleModal"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="modal-body">
+                @if (!isAdminAuthenticated)
+                {
+                    <div class="login-box">
+                        <div class="login-icon"><i class="bi bi-shield-lock-fill"></i></div>
+                        <h4>Authentication Required</h4>
+                        <p>Enter admin credentials to edit homepage content</p>
+                        <div class="input-group"><i class="bi bi-person"></i><input class="form-input" placeholder="Username" @bind="adminUsername" /></div>
+                        <div class="input-group"><i class="bi bi-key"></i><input class="form-input" type="password" placeholder="Password" @bind="adminPassword" /></div>
+                        <button class="btn-login" @onclick="Login"><i class="bi bi-box-arrow-in-right"></i> Login to Continue</button>
+                        @if (!string.IsNullOrEmpty(loginError))
+                        {
+                            <p class="error-text"><i class="bi bi-exclamation-triangle-fill"></i> @loginError</p>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="edit-form">
+                        <div class="admin-status"><i class="bi bi-database"></i><span>Edit Homepage Content</span><span class="admin-badge"><i class="bi bi-shield-lock-fill"></i> Admin Mode Active</span></div>
+                        <div class="form-group"><label><i class="bi bi-building"></i> Society Name</label><input class="form-input" @bind="editData.SocietyName" /></div>
+                        <div class="form-group"><label><i class="bi bi-chat-dots"></i> Welcome Message</label><textarea class="form-input" rows="3" @bind="editData.Message"></textarea></div>
+                        <div class="form-group"><label><i class="bi bi-bullseye"></i> Aims & Objectives</label><textarea class="form-input" rows="3" @bind="editData.Aims"></textarea></div>
+                        <div class="form-group"><label><i class="bi bi-eye"></i> Vision Statement</label><textarea class="form-input" rows="3" @bind="editData.Vision"></textarea></div>
+                        <div class="action-buttons"><button class="btn-update" @onclick="UpdateData"><i class="bi bi-pencil-square"></i> Update</button><button class="btn-refresh" @onclick="RefreshData"><i class="bi bi-arrow-repeat"></i> Refresh</button></div>
+                        @if (!string.IsNullOrEmpty(message))
+                        {
+                            <p class="success-text"><i class="bi bi-check-circle-fill"></i> @message</p>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private SocietyInfoDAL dal = new SocietyInfoDAL();
+    private SocietyInfo? societyData;
+    private SocietyInfo editData = new SocietyInfo();
+    private bool showModal = false;
+    private bool isAdminAuthenticated = false;
+    private bool mobileMenuOpen = false;
+    private string adminUsername = "";
+    private string adminPassword = "";
+    private string loginError = "";
+    private string message = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var data = await Task.Run(() => dal.GetAll());
+        if (data != null && data.Count > 0)
+        {
+            societyData = data.First();
+            editData = new SocietyInfo
+            {
+                Id = societyData.Id,
+                SocietyName = societyData.SocietyName,
+                Message = societyData.Message,
+                Aims = societyData.Aims,
+                Vision = societyData.Vision
+            };
+        }
+        else
+        {
+            societyData = new SocietyInfo
+            {
+                Id = "1",
+                SocietyName = "Medical Society of Excellence",
+                Message = "Advancing medical frontiers with compassion and innovation. Join us to shape the future of healthcare.",
+                Aims = "Foster research, elevate clinical standards, support education, and build global medical alliances.",
+                Vision = "A world where equitable, cutting-edge healthcare is accessible to every community."
+            };
+        }
+        StateHasChanged();
+    }
+
+    private void ToggleMobileMenu() => mobileMenuOpen = !mobileMenuOpen;
+    private void ToggleModal() => showModal = !showModal;
+    private void CloseModalOnOverlay() { showModal = false; isAdminAuthenticated = false; message = ""; }
+
+    private async Task Login()
+    {
+        if (adminUsername == "admin" && adminPassword == "admin123")
+        {
+            isAdminAuthenticated = true;
+            loginError = "";
+        }
+        else
+        {
+            loginError = "Invalid credentials! Use admin / admin123";
+        }
+        await Task.CompletedTask;
+    }
+
+    private async Task UpdateData()
+    {
+        if (societyData != null)
+        {
+            societyData.SocietyName = editData.SocietyName;
+            societyData.Message = editData.Message;
+            societyData.Aims = editData.Aims;
+            societyData.Vision = editData.Vision;
+            await Task.Run(() => dal.Update(societyData));
+            message = "Record updated successfully!";
+            StateHasChanged();
+            await Task.Delay(3000);
+            message = "";
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadData();
+        message = "Data refreshed!";
+        StateHasChanged();
+        await Task.Delay(3000);
+        message = "";
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,1495 @@
+﻿@page "/objectives"
+@using Entities
+@using DAL
+@using Microsoft.AspNetCore.Components.Forms
+@inject IWebHostEnvironment env
+@inject IJSRuntime jsRuntime
+@rendermode InteractiveServer
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<div class="main-navbar">
+    <div class="navbar-container">
+        <div class="navbar-brand">
+            <i class="bi bi-hospital-fill"></i>
+            <span>Medical Society</span>
+        </div>
+        <button class="mobile-menu-btn" @onclick="ToggleMobileMenu">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="navbar-links @(mobileMenuOpen ? "show" : "")">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/leadership" class="nav-link">Leadership</a>
+            <a href="/cabinet" class="nav-link">Cabinet</a>
+            <a href="/annualprogram" class="nav-link">Annual Programs</a>
+            <a href="/annualgathering" class="nav-link">Annual Gathering</a>
+            <a href="/past-presidents" class="nav-link">Past Presidents</a>
+            <a href="/objectives" class="nav-link active">Objectives</a>
+        </div>
+        <button class="admin-nav-btn" @onclick="OpenModal">
+            <i class="bi bi-shield-lock-fill"></i> Admin
+        </button>
+    </div>
+</div>
+
+<div class="page-container">
+    <div class="page-header">
+        <div class="header-content">
+            <span class="header-tag">✦ S T R A T E G I C  G O A L S ✦</span>
+            <h1 class="page-title">society <span class="title-highlight">objectives</span></h1>
+            <div class="title-divider"></div>
+            <p class="page-subtitle">our vision and mission for a better tomorrow</p>
+        </div>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-box">
+            <div class="stat-number">@(objectives?.Count ?? 0)</div>
+            <div class="stat-label">Total Objectives</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">@(objectives?.Count(x => !string.IsNullOrEmpty(x.Description)) ?? 0)</div>
+            <div class="stat-label">With Description</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">Active</div>
+            <div class="stat-label">Status</div>
+        </div>
+    </div>
+
+    <div class="search-wrapper">
+        <div class="search-input-wrapper">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" class="search-input" @bind="searchTerm" @bind:event="oninput" placeholder="Search by objective name..." />
+            @if (!string.IsNullOrEmpty(searchTerm))
+            {
+                <button class="search-clear-btn" @onclick="() => searchTerm = string.Empty">
+                    <i class="fas fa-times"></i>
+                </button>
+            }
+        </div>
+        <div class="search-result-count">@FilteredObjectives.Count() objectives found</div>
+    </div>
+
+    <div class="table-wrapper">
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>loading objectives...</p>
+            </div>
+        }
+        else if (objectives == null || !objectives.Any())
+        {
+            <div class="empty-state">
+                <i class="fas fa-bullseye"></i>
+                <p>No objectives found</p>
+                <button class="empty-add-btn" @onclick="OpenModal">Add First Objective</button>
+            </div>
+        }
+        else if (!FilteredObjectives.Any())
+        {
+            <div class="empty-state">
+                <i class="fas fa-search"></i>
+                <p>No matching objectives found</p>
+                <button class="empty-add-btn" @onclick="() => searchTerm = string.Empty">Clear Search</button>
+            </div>
+        }
+        else
+        {
+            <table class="elegant-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Objective Name</th>
+                        <th>Description</th>
+                        <th style="width: 100px;">Quick View</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int counter = 1;
+                    }
+                    @foreach (var objective in FilteredObjectives.OrderBy(x => x.ObjectiveName))
+                    {
+                        <tr>
+                            <td class="serial-cell">@counter</td>
+                            <td class="name-cell">
+                                <div class="objective-name-wrapper">
+                                    <div class="objective-icon-bg">
+                                        <i class="fas fa-bullseye"></i>
+                                    </div>
+                                    <div class="objective-text">
+                                        <span class="objective-title">@objective.ObjectiveName</span>
+                                        <span class="objective-badge">Active</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="description-cell">
+                                @if (!string.IsNullOrEmpty(objective.Description))
+                                {
+                                    <div class="description-preview">
+                                        <i class="fas fa-quote-left quote-icon"></i>
+                                        @(objective.Description.Length > 100 ? objective.Description.Substring(0, 100) + "..." : objective.Description)
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="no-data">— No description added —</span>
+                                }
+                            </td>
+                            <td class="actions-cell">
+                                <button class="action-icon view-icon" @onclick="() => QuickView(objective)" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        counter++;
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+<!-- Quick View Modal -->
+@if (showQuickView && selectedObjective != null)
+{
+    <div class="quickview-overlay" @onclick="CloseQuickView">
+        <div class="quickview-container" @onclick:stopPropagation="true">
+            <div class="quickview-header">
+                <h3><i class="fas fa-bullseye me-2"></i>Objective Details</h3>
+            </div>
+            <div class="quickview-body">
+                <div class="detail-row">
+                    <label>Objective Name</label>
+                    <div class="detail-name">
+                        <i class="fas fa-bullseye"></i>
+                        <strong>@selectedObjective.ObjectiveName</strong>
+                    </div>
+                </div>
+                @if (!string.IsNullOrEmpty(selectedObjective.Description))
+                {
+                    <div class="detail-row">
+                        <label><i class="fas fa-align-left me-1"></i> Description</label>
+                        <div class="detail-description">
+                            @selectedObjective.Description
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="quickview-footer">
+                <button class="btn-secondary" @onclick="CloseQuickView">Close</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Admin Modal -->
+@if (showModal)
+{
+    <div class="modal-overlay" @onclick="CloseModalOnOverlay">
+        <div class="modal-container" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3><i class="fas fa-shield-alt me-2"></i>@(isAdmin ? "Admin Panel" : "Admin Access")</h3>
+                <button class="modal-close" @onclick="CloseModal">×</button>
+            </div>
+            <div class="modal-body">
+                @if (!isAdmin)
+                {
+                    <div class="login-section">
+                        <div class="login-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <h4>Authentication Required</h4>
+                        <p>Enter admin credentials to manage objectives</p>
+                        <div class="input-field">
+                            <i class="fas fa-user"></i>
+                            <input type="text" @bind="username" placeholder="Username" />
+                        </div>
+                        <div class="input-field">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" @bind="password" placeholder="Password" />
+                        </div>
+                        @if (!string.IsNullOrEmpty(error))
+                        {
+                            <div class="error-msg">@error</div>
+                        }
+                        <button class="btn-primary" @onclick="Login">Login</button>
+                    </div>
+                }
+                else
+                {
+                    <div>
+                        <div class="admin-header-info">
+                            <i class="fas fa-database"></i>
+                            <span>Manage Objectives</span>
+                            <span class="admin-badge">Active</span>
+                            <button class="logout-inside" @onclick="Logout">Logout</button>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(editError))
+                        {
+                            <div class="error-msg">@editError</div>
+                        }
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="success-msg">@successMessage</div>
+                        }
+
+                        <div class="form-card">
+                            <h4><i class="fas fa-edit"></i> @(string.IsNullOrEmpty(editObjective.Id) ? "Add New Objective" : "Edit Objective")</h4>
+
+                            <div class="form-group">
+                                <label>Objective Name *</label>
+                                <input type="text" @bind="editObjective.ObjectiveName" placeholder="e.g., Advance Medical Education" />
+                            </div>
+                            <div class="form-group">
+                                <label>Description</label>
+                                <textarea @bind="editObjective.Description" rows="4" placeholder="Detailed description of the objective..."></textarea>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(editObjective.Id))
+                            {
+                                <div class="info-box">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span>Editing Record ID: @editObjective.Id</span>
+                                </div>
+                            }
+
+                            <div class="action-buttons">
+                                <button class="btn-save" @onclick="Save" disabled="@isSaving">
+                                    @if (isSaving)
+                                    {
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-save"></i>
+                                    }
+                                    @(string.IsNullOrEmpty(editObjective.Id) ? "Add Objective" : "Update Objective")
+                                </button>
+                                @if (!string.IsNullOrEmpty(editObjective.Id))
+                                {
+                                    <button class="btn-cancel" @onclick="CancelEdit">Cancel</button>
+                                }
+                            </div>
+                        </div>
+
+                        <hr />
+
+                        <div class="list-header">
+                            <i class="fas fa-list"></i>
+                            <span>Existing Objectives</span>
+                            <span class="list-badge">@(objectives?.Count ?? 0) records</span>
+                        </div>
+
+                        <div class="existing-list">
+                            @if (objectives == null || !objectives.Any())
+                            {
+                                <div class="no-items">No objectives yet. Add your first objective above.</div>
+                            }
+                            else
+                            {
+                                @foreach (var objective in objectives.OrderBy(x => x.ObjectiveName))
+                                {
+                                    <div class="list-item">
+                                        <div class="list-item-info">
+                                            <div class="list-icon">
+                                                <i class="fas fa-bullseye"></i>
+                                            </div>
+                                            <div class="list-details">
+                                                <strong>@objective.ObjectiveName</strong>
+                                                @if (!string.IsNullOrEmpty(objective.Description))
+                                                {
+                                                    <span>@(objective.Description.Length > 60 ? objective.Description.Substring(0, 60) + "..." : objective.Description)</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="no-desc">No description</span>
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="list-actions">
+                                            <button class="edit-item" @onclick="() => LoadEdit(objective)">
+                                                <i class="fas fa-pen"></i> Edit
+                                            </button>
+                                            <button class="delete-item" @onclick="() => Delete(objective)">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" @onclick="CloseModal">Close</button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: linear-gradient(135deg, #0a0e27 0%, #0f1235 100%);
+        min-height: 100vh;
+    }
+
+    /* Navbar */
+    .main-navbar {
+        background: rgba(8, 12, 26, 0.95);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(124, 58, 237, 0.3);
+        position: sticky;
+        top: 0;
+        z-index: 99;
+    }
+
+    .navbar-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 20px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #c084fc, #7c3aed);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+        .navbar-brand i {
+            font-size: 24px;
+            color: #7c3aed;
+        }
+
+    .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: #c084fc;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    .navbar-links {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+
+    .nav-link {
+        text-decoration: none;
+        color: #94a3b8;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s;
+        padding: 8px 0;
+    }
+
+        .nav-link:hover {
+            color: #c084fc;
+        }
+
+        .nav-link.active {
+            color: #c084fc;
+            font-weight: 600;
+            border-bottom: 2px solid #7c3aed;
+        }
+
+    .admin-nav-btn {
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 30px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .admin-nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+        }
+
+    /* Page Container */
+    .page-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 40px 24px;
+    }
+
+    /* Header */
+    .page-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .header-tag {
+        font-size: 11px;
+        letter-spacing: 4px;
+        color: #c084fc;
+        font-weight: 500;
+        display: inline-block;
+        margin-bottom: 15px;
+    }
+
+    .page-title {
+        font-size: 56px;
+        font-weight: 700;
+        color: #e2e8f0;
+        margin-bottom: 20px;
+    }
+
+    .title-highlight {
+        background: linear-gradient(135deg, #c084fc, #7c3aed);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .title-divider {
+        width: 70px;
+        height: 3px;
+        background: linear-gradient(90deg, #7c3aed, #c084fc);
+        margin: 0 auto 20px;
+        border-radius: 3px;
+    }
+
+    .page-subtitle {
+        font-size: 14px;
+        color: #94a3b8;
+    }
+
+    /* Stats */
+    .stats-row {
+        display: flex;
+        justify-content: center;
+        gap: 25px;
+        margin-bottom: 40px;
+        flex-wrap: wrap;
+    }
+
+    .stat-box {
+        background: rgba(15, 18, 53, 0.7);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 20px 40px;
+        text-align: center;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+        min-width: 160px;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #c084fc, #7c3aed);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .stat-label {
+        color: #94a3b8;
+        font-size: 0.8rem;
+        margin-top: 5px;
+    }
+
+    /* Search */
+    .search-wrapper {
+        max-width: 400px;
+        margin: 0 auto 30px;
+    }
+
+    .search-input-wrapper {
+        position: relative;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #7c3aed;
+        font-size: 14px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 40px 12px 42px;
+        border: 1px solid rgba(124, 58, 237, 0.3);
+        border-radius: 40px;
+        background: rgba(15, 18, 53, 0.8);
+        color: #e2e8f0;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+    }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #7c3aed;
+        }
+
+    .search-clear-btn {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #94a3b8;
+        cursor: pointer;
+    }
+
+        .search-clear-btn:hover {
+            color: #c084fc;
+        }
+
+    .search-result-count {
+        text-align: center;
+        font-size: 12px;
+        color: #94a3b8;
+        margin-top: 10px;
+    }
+
+    /* Table */
+    .table-wrapper {
+        background: rgba(15, 18, 53, 0.7);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+        overflow-x: auto;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+    }
+
+    .elegant-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 700px;
+    }
+
+        .elegant-table thead tr {
+            background: linear-gradient(135deg, #7c3aed, #c084fc);
+        }
+
+        .elegant-table th {
+            padding: 16px 20px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .elegant-table td {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(124, 58, 237, 0.15);
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+
+        .elegant-table tbody tr:hover {
+            background: rgba(124, 58, 237, 0.1);
+        }
+
+    .serial-cell {
+        font-weight: 600;
+        color: #c084fc;
+        width: 60px;
+    }
+
+    /* Unique Amazing Style for Objective Name */
+    .objective-name-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .objective-icon-bg {
+        width: 45px;
+        height: 45px;
+        background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(192, 132, 252, 0.1));
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(124, 58, 237, 0.3);
+    }
+
+        .objective-icon-bg i {
+            font-size: 20px;
+            color: #c084fc;
+        }
+
+    .objective-text {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .objective-title {
+        font-size: 16px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #f0e6ff, #c084fc);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        letter-spacing: -0.3px;
+    }
+
+    .objective-badge {
+        display: inline-block;
+        font-size: 9px;
+        padding: 2px 10px;
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border-radius: 20px;
+        width: fit-content;
+        border: 1px solid #10b981;
+    }
+
+    .description-cell {
+        max-width: 500px;
+    }
+
+    .description-preview {
+        color: #94a3b8;
+        font-size: 13px;
+        line-height: 1.5;
+        display: flex;
+        gap: 8px;
+    }
+
+    .quote-icon {
+        color: #7c3aed;
+        font-size: 12px;
+        margin-top: 2px;
+        opacity: 0.7;
+    }
+
+    .no-data {
+        color: #64748b;
+        font-style: italic;
+    }
+
+    .actions-cell {
+        width: 100px;
+    }
+
+    .action-icon {
+        background: none;
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 16px;
+    }
+
+    .view-icon {
+        color: #c084fc;
+        background: rgba(124, 58, 237, 0.2);
+    }
+
+        .view-icon:hover {
+            background: linear-gradient(135deg, #7c3aed, #c084fc);
+            color: white;
+            transform: scale(1.05);
+        }
+
+    /* Loading & Empty States */
+    .loading-state, .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #94a3b8;
+    }
+
+        .loading-state i, .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: #7c3aed;
+        }
+
+    .empty-add-btn {
+        background: none;
+        border: 1px solid #7c3aed;
+        padding: 10px 28px;
+        border-radius: 40px;
+        color: #c084fc;
+        cursor: pointer;
+        margin-top: 20px;
+        transition: all 0.2s;
+    }
+
+        .empty-add-btn:hover {
+            background: linear-gradient(135deg, #7c3aed, #c084fc);
+            color: white;
+            border-color: transparent;
+        }
+
+    /* Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-container {
+        background: linear-gradient(135deg, #0f1235, #0a0e27);
+        border-radius: 28px;
+        width: 550px;
+        max-width: 90%;
+        max-height: 85vh;
+        overflow-y: auto;
+        border: 1px solid rgba(124, 58, 237, 0.4);
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        padding: 18px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 28px 28px 0 0;
+    }
+
+        .modal-header h3 {
+            color: white;
+            margin: 0;
+            font-size: 18px;
+        }
+
+    .modal-close {
+        background: rgba(255, 255, 255, 0.15);
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+    .modal-body {
+        padding: 24px;
+    }
+
+    .modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid rgba(124, 58, 237, 0.3);
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .btn-secondary {
+        background: none;
+        border: 1px solid #7c3aed;
+        padding: 8px 24px;
+        border-radius: 30px;
+        color: #c084fc;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #7c3aed, #c084fc);
+            color: white;
+        }
+
+    /* Login Section */
+    .login-section {
+        text-align: center;
+    }
+
+    .login-icon {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+    }
+
+        .login-icon i {
+            font-size: 32px;
+            color: white;
+        }
+
+    .login-section h4 {
+        color: #e2e8f0;
+        margin-bottom: 5px;
+    }
+
+    .login-section p {
+        color: #94a3b8;
+        font-size: 13px;
+        margin-bottom: 20px;
+    }
+
+    .input-field {
+        position: relative;
+        margin-bottom: 15px;
+    }
+
+        .input-field i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7c3aed;
+        }
+
+        .input-field input {
+            width: 100%;
+            padding: 12px 12px 12px 42px;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 14px;
+            background: rgba(15, 18, 53, 0.8);
+            color: #e2e8f0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+            .input-field input:focus {
+                outline: none;
+                border-color: #7c3aed;
+            }
+
+    .btn-primary {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        color: white;
+        border: none;
+        border-radius: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+    /* Admin Section */
+    .admin-header-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(124, 58, 237, 0.3);
+        color: #c084fc;
+    }
+
+    .admin-badge {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+    }
+
+    .logout-inside {
+        margin-left: auto;
+        background: #ef4444;
+        border: none;
+        padding: 5px 12px;
+        border-radius: 20px;
+        color: white;
+        font-size: 11px;
+        cursor: pointer;
+    }
+
+        .logout-inside:hover {
+            background: #dc2626;
+        }
+
+    .form-card {
+        background: rgba(15, 18, 53, 0.5);
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+    }
+
+        .form-card h4 {
+            color: #c084fc;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+    .form-group {
+        margin-bottom: 18px;
+    }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 14px;
+            background: rgba(15, 18, 53, 0.8);
+            color: #e2e8f0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+        }
+
+    .info-box {
+        background: rgba(124, 58, 237, 0.15);
+        padding: 10px;
+        border-radius: 10px;
+        margin: 15px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+        color: #c084fc;
+        border: 1px solid rgba(124, 58, 237, 0.3);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .btn-save {
+        flex: 2;
+        padding: 12px;
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        color: white;
+        border: none;
+        border-radius: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-cancel {
+        flex: 1;
+        padding: 12px;
+        background: #334155;
+        color: white;
+        border: none;
+        border-radius: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .btn-save:hover, .btn-cancel:hover {
+            transform: translateY(-2px);
+        }
+
+    .list-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 15px;
+        color: #c084fc;
+    }
+
+    .list-badge {
+        background: rgba(124, 58, 237, 0.2);
+        color: #c084fc;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+    }
+
+    .existing-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        background: rgba(15, 18, 53, 0.6);
+        border-radius: 14px;
+        margin-bottom: 10px;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+        transition: all 0.2s;
+    }
+
+        .list-item:hover {
+            background: rgba(124, 58, 237, 0.1);
+            transform: translateX(3px);
+        }
+
+    .list-item-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+    }
+
+    .list-icon {
+        width: 35px;
+        height: 35px;
+        background: rgba(124, 58, 237, 0.2);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .list-icon i {
+            font-size: 16px;
+            color: #c084fc;
+        }
+
+    .list-details {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+        .list-details strong {
+            font-size: 13px;
+            color: #e2e8f0;
+        }
+
+        .list-details span {
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+    .no-desc {
+        font-style: italic;
+        color: #64748b;
+    }
+
+    .list-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .edit-item, .delete-item {
+        background: none;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s;
+    }
+
+    .edit-item {
+        color: #c084fc;
+        background: rgba(124, 58, 237, 0.2);
+    }
+
+    .delete-item {
+        color: #f87171;
+        background: rgba(239, 68, 68, 0.2);
+    }
+
+        .edit-item:hover, .delete-item:hover {
+            transform: scale(1.05);
+        }
+
+    .error-msg {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        padding: 10px;
+        border-radius: 12px;
+        font-size: 13px;
+        margin-bottom: 15px;
+        border: 1px solid #ef4444;
+    }
+
+    .success-msg {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        padding: 10px;
+        border-radius: 12px;
+        font-size: 13px;
+        margin-bottom: 15px;
+        border: 1px solid #10b981;
+    }
+
+    .no-items {
+        text-align: center;
+        padding: 20px;
+        color: #94a3b8;
+        font-size: 13px;
+    }
+
+    hr {
+        border-color: rgba(124, 58, 237, 0.3);
+        margin: 20px 0;
+    }
+
+    /* Quick View */
+    .quickview-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .quickview-container {
+        background: linear-gradient(135deg, #0f1235, #0a0e27);
+        border-radius: 28px;
+        width: 500px;
+        max-width: 90%;
+        border: 1px solid rgba(124, 58, 237, 0.4);
+    }
+
+    .quickview-header {
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        padding: 18px 24px;
+        border-radius: 28px 28px 0 0;
+    }
+
+        .quickview-header h3 {
+            color: white;
+            margin: 0;
+        }
+
+    .quickview-body {
+        padding: 24px;
+    }
+
+    .detail-row {
+        margin-bottom: 20px;
+    }
+
+        .detail-row label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #c084fc;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+    .detail-name {
+        background: rgba(124, 58, 237, 0.15);
+        padding: 12px 16px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid rgba(124, 58, 237, 0.3);
+    }
+
+        .detail-name i {
+            color: #c084fc;
+            font-size: 18px;
+        }
+
+        .detail-name strong {
+            color: #e2e8f0;
+            font-size: 15px;
+        }
+
+    .detail-description {
+        color: #94a3b8;
+        font-size: 14px;
+        line-height: 1.6;
+        background: rgba(15, 18, 53, 0.5);
+        padding: 12px 16px;
+        border-radius: 14px;
+    }
+
+    .quickview-footer {
+        padding: 16px 24px;
+        border-top: 1px solid rgba(124, 58, 237, 0.3);
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    /* Responsive */
+    @@media (max-width: 1000px) {
+        .mobile-menu-btn
+
+    {
+        display: block;
+    }
+
+    .navbar-links {
+        display: none;
+        position: absolute;
+        top: 70px;
+        left: 0;
+        right: 0;
+        background: rgba(8, 12, 26, 0.98);
+        flex-direction: column;
+        padding: 20px;
+        gap: 15px;
+        border-bottom: 1px solid #7c3aed;
+        z-index: 100;
+    }
+
+        .navbar-links.show {
+            display: flex;
+        }
+
+    .nav-link {
+        padding: 8px 0;
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .page-title
+
+    {
+        font-size: 40px;
+    }
+
+    .stats-row {
+        gap: 15px;
+    }
+
+    .stat-box {
+        padding: 15px 25px;
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+    }
+
+    .page-container {
+        padding: 20px 16px;
+    }
+
+    .modal-container {
+        width: 95%;
+    }
+
+    .navbar-container {
+        padding: 12px 16px;
+    }
+
+    .objective-name-wrapper {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    }
+</style>
+
+@code {
+    private SocietyObjectivesDAL dal = new SocietyObjectivesDAL();
+    private List<SocietyObjectives> objectives = new();
+    private SocietyObjectives editObjective = new SocietyObjectives();
+    private SocietyObjectives? selectedObjective = null;
+    private bool showModal = false;
+    private bool isAdmin = false;
+    private bool showQuickView = false;
+    private bool isLoading = false;
+    private bool isSaving = false;
+    private bool mobileMenuOpen = false;
+    private string username = "";
+    private string password = "";
+    private string error = "";
+    private string editError = "";
+    private string successMessage = "";
+    private string searchTerm = "";
+
+    private IEnumerable<SocietyObjectives> FilteredObjectives => objectives?.Where(x =>
+        string.IsNullOrEmpty(searchTerm) ||
+        x.ObjectiveName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+        (x.Description != null && x.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))) ?? new List<SocietyObjectives>();
+
+    private void ToggleMobileMenu() => mobileMenuOpen = !mobileMenuOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        try
+        {
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to load data: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadData()
+    {
+        await Task.Run(() => { objectives = dal.GetAll(); });
+        StateHasChanged();
+    }
+
+    private void OpenModal() => showModal = true;
+    private void CloseModal() => showModal = false;
+    private void CloseModalOnOverlay()
+    {
+        if (!isAdmin)
+        {
+            showModal = false;
+        }
+    }
+
+    private async Task Login()
+    {
+        await Task.Delay(1);
+        if (username == "admin" && password == "admin123")
+        {
+            isAdmin = true;
+            error = "";
+        }
+        else
+        {
+            error = "Invalid credentials. Use admin/admin123";
+        }
+        StateHasChanged();
+    }
+
+    private void Logout()
+    {
+        isAdmin = false;
+        editObjective = new SocietyObjectives();
+        editError = "";
+        successMessage = "";
+        CloseModal();
+    }
+
+    private async Task Save()
+    {
+        if (!isAdmin) return;
+
+        if (string.IsNullOrWhiteSpace(editObjective.ObjectiveName))
+        {
+            editError = "Objective name is required";
+            successMessage = "";
+            return;
+        }
+
+        isSaving = true;
+        editError = "";
+        successMessage = "";
+
+        try
+        {
+            await Task.Run(() =>
+            {
+                if (string.IsNullOrEmpty(editObjective.Id))
+                {
+                    editObjective.Id = null;
+                    dal.Add(editObjective);
+                    successMessage = "Objective added successfully!";
+                }
+                else
+                {
+                    dal.Update(editObjective);
+                    successMessage = "Objective updated successfully!";
+                }
+            });
+            await LoadData();
+            editObjective = new SocietyObjectives();
+            editError = "";
+
+            await Task.Delay(3000);
+            successMessage = "";
+            StateHasChanged();
+        }
+        catch (Exception ex) { editError = $"Save failed: {ex.Message}"; }
+        finally { isSaving = false; }
+    }
+
+    private void LoadEdit(SocietyObjectives objective)
+    {
+        editObjective = new SocietyObjectives
+        {
+            Id = objective.Id,
+            ObjectiveName = objective.ObjectiveName,
+            Description = objective.Description
+        };
+        editError = "";
+        successMessage = "";
+    }
+
+    private void CancelEdit() { editObjective = new SocietyObjectives(); editError = ""; successMessage = ""; }
+
+    private async Task Delete(SocietyObjectives objective)
+    {
+        if (!isAdmin) return;
+        var confirmed = await jsRuntime.InvokeAsync<bool>("confirm", $"Delete objective '{objective.ObjectiveName}'?");
+        if (confirmed)
+        {
+            await Task.Run(() => dal.Delete(objective.Id));
+            await LoadData();
+            if (editObjective.Id == objective.Id) CancelEdit();
+            successMessage = "Objective deleted successfully!";
+            await Task.Delay(3000);
+            successMessage = "";
+            StateHasChanged();
+        }
+    }
+
+    private void QuickView(SocietyObjectives objective) { selectedObjective = objective; showQuickView = true; }
+    private void CloseQuickView() { showQuickView = false; selectedObjective = null; }
+}

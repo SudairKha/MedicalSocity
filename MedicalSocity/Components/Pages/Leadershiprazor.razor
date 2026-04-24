@@ -1,0 +1,1363 @@
+﻿@page "/leadership"
+@using Entities
+@using DAL
+@using Microsoft.AspNetCore.Components.Forms
+@inject IWebHostEnvironment env
+@inject IJSRuntime jsRuntime
+@rendermode InteractiveServer
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<div class="main-navbar">
+    <div class="navbar-container">
+        <div class="navbar-brand">
+            <i class="bi bi-hospital-fill"></i>
+            <span>Medical Society</span>
+        </div>
+        <button class="mobile-menu-btn" @onclick="ToggleMobileMenu">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="navbar-links @(mobileMenuOpen ? "show" : "")">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/leadership" class="nav-link active">Leadership</a>
+            <a href="/cabinet" class="nav-link">Cabinet</a>
+            <a href="/annualprogram" class="nav-link">Annual Programs</a>
+            <a href="/annualgathering" class="nav-link">Annual Gathering</a>
+            <a href="/past-presidents" class="nav-link">Past Presidents</a>
+            <a href="/objectives" class="nav-link">Objectives</a>
+        </div>
+        <button class="admin-nav-btn" @onclick="OpenModal">
+            <i class="bi bi-shield-lock-fill"></i> Admin
+        </button>
+    </div>
+</div>
+
+<div class="app">
+    <div class="header">
+        <div class="header-content">
+            <span class="badge">✦ EXECUTIVE CABINET ✦</span>
+            <h1>leadership <span class="gradient-text">cabinet</span></h1>
+            <div class="divider"></div>
+            <p>meet our distinguished leadership team</p>
+        </div>
+    </div>
+
+    <div class="grid-container">
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>loading leadership team...</p>
+            </div>
+        }
+        else if (leadershipMembers == null || !leadershipMembers.Any())
+        {
+            <div class="empty-state">
+                <i class="fas fa-users-slash"></i>
+                <h3>leadership cabinet is empty</h3>
+                <p>start adding members to your leadership team</p>
+                <button class="add-btn" @onclick="OpenModal"><i class="fas fa-plus"></i> add first member</button>
+            </div>
+        }
+        else
+        {
+            <div class="cabinet-grid">
+                @foreach (var member in leadershipMembers)
+                {
+                    <div class="cabinet-card">
+                        <div class="card-front">
+                            <div class="card-img">
+                                <img src="@(string.IsNullOrEmpty(member.ProfilePicture) ? "https://via.placeholder.com/400x300?text=Leader" : member.ProfilePicture)"
+                                     alt="@member.Name" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'" />
+                                <div class="card-overlay"><i class="fas fa-user-tie"></i></div>
+                            </div>
+                            <div class="card-body">
+                                <h3>@member.Name</h3>
+                                <p class="position">@member.Status</p>
+                                <div class="card-footer">
+                                    <button class="details-btn" @onclick="() => QuickView(member)"><i class="fas fa-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Quick View Modal -->
+@if (showQuickView && selectedMember != null)
+{
+    <div class="quickview" @onclick="CloseQuickView">
+        <div class="quickview-card" @onclick:stopPropagation="true">
+            <button class="quickview-close" @onclick="CloseQuickView">×</button>
+            <div class="quickview-img">
+                <img src="@selectedMember.ProfilePicture" alt="@selectedMember.Name" />
+            </div>
+            <div class="quickview-info">
+                <h2>@selectedMember.Name</h2>
+                <span class="quickview-status">@selectedMember.Status</span>
+                @if (!string.IsNullOrEmpty(selectedMember.Experiences))
+                {
+                    <p><strong>Experiences:</strong> @selectedMember.Experiences</p>
+                }
+                @if (!string.IsNullOrEmpty(selectedMember.Message))
+                {
+                    <p><strong>Message:</strong> @selectedMember.Message</p>
+                }
+                <button class="close-btn" @onclick="CloseQuickView">close</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Admin Modal -->
+@if (showModal)
+{
+    <div class="admin-modal" @onclick="CloseModal">
+        <div class="admin-card" @onclick:stopPropagation="true">
+            <button class="admin-close" @onclick="CloseModal">×</button>
+
+            @if (!isAdmin)
+            {
+                <div class="admin-header">
+                    <i class="fas fa-shield-alt"></i>
+                    <h2>secure access</h2>
+                </div>
+                <div class="admin-body">
+                    <div class="input-icon">
+                        <i class="fas fa-user"></i>
+                        <input type="text" @bind="username" placeholder="username" />
+                    </div>
+                    <div class="input-icon">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" @bind="password" placeholder="password" @onkeypress="EnterLogin" />
+                    </div>
+                    @if (!string.IsNullOrEmpty(error))
+                    {
+                        <div class="error-msg">@error</div>
+                    }
+                    <button class="login-btn" @onclick="Login"><i class="fas fa-arrow-right"></i> login</button>
+                </div>
+            }
+            else
+            {
+                <div class="admin-header">
+                    <i class="fas fa-sliders-h"></i>
+                    <h2>cabinet management</h2>
+                </div>
+                <div class="admin-body">
+                    @if (!string.IsNullOrEmpty(editError))
+                    {
+                        <div class="error-msg">@editError</div>
+                    }
+
+                    <div class="form-group">
+                        <label>full name</label>
+                        <input type="text" @bind="editMember.Name" placeholder="e.g., John Doe" />
+                    </div>
+                    <div class="form-group">
+                        <label>status / position</label>
+                        <input type="text" @bind="editMember.Status" placeholder="e.g., CEO, Director" />
+                    </div>
+                    <div class="form-group">
+                        <label>experiences</label>
+                        <textarea @bind="editMember.Experiences" rows="3" placeholder="years of experience, background..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>message</label>
+                        <textarea @bind="editMember.Message" rows="3" placeholder="personal message or quote..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>profile picture (Passport style - full face)</label>
+                        <div class="upload-box">
+                            <InputFile OnChange="UploadImage" />
+                            <div class="upload-content">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <span>click to upload photo</span>
+                            </div>
+                        </div>
+                        <small class="text-muted">✓ Image will show full face without cropping</small>
+                    </div>
+                    @if (!string.IsNullOrEmpty(editMember.ProfilePicture))
+                    {
+                        <div class="image-preview">
+                            <img src="@editMember.ProfilePicture" alt="Preview" />
+                            <button class="delete-image" @onclick="DeleteImage" type="button">
+                                <i class="fas fa-trash"></i> remove
+                            </button>
+                        </div>
+                    }
+
+                    <button class="save-btn" @onclick="Save" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <i class="fas fa-spinner fa-spin"></i>
+                        }
+                        else
+                        {
+                            <i class="fas fa-save"></i>
+                        }
+                        @(string.IsNullOrEmpty(editMember.Id) ? "add member" : "update member")
+                    </button>
+
+                    @if (!string.IsNullOrEmpty(editMember.Id))
+                    {
+                        <button class="cancel-btn" @onclick="CancelEdit"><i class="fas fa-times"></i> cancel edit</button>
+                    }
+
+                    <div class="divider-line"></div>
+
+                    <div class="manage-header">
+                        <i class="fas fa-list"></i>
+                        <span>manage cabinet (@leadershipMembers.Count members)</span>
+                    </div>
+                    <div class="items-list">
+                        @if (leadershipMembers == null || !leadershipMembers.Any())
+                        {
+                            <div class="no-items">no members yet</div>
+                        }
+                        else
+                        {
+                            @foreach (var member in leadershipMembers)
+                            {
+                                <div class="manage-item">
+                                    <div class="item-info">
+                                        <div class="admin-image-preview">
+                                            <img src="@(string.IsNullOrEmpty(member.ProfilePicture) ? "https://via.placeholder.com/40" : member.ProfilePicture)"
+                                                 alt="@member.Name" />
+                                        </div>
+                                        <div>
+                                            <strong>@member.Name</strong>
+                                            <small>@member.Status</small>
+                                        </div>
+                                    </div>
+                                    <div class="item-actions">
+                                        <button class="icon-edit" @onclick="() => LoadEdit(member)"><i class="fas fa-pen"></i></button>
+                                        <button class="icon-delete" @onclick="() => Delete(member)"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    <button class="logout-btn" @onclick="Logout"><i class="fas fa-sign-out-alt"></i> logout</button>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: linear-gradient(135deg, #0a0e27 0%, #0f1235 100%);
+        min-height: 100vh;
+    }
+
+    .app {
+        min-height: 100vh;
+    }
+
+    /* Navbar Styles */
+    .main-navbar {
+        background: rgba(8, 12, 26, 0.95);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(124, 58, 237, 0.3);
+        position: sticky;
+        top: 0;
+        z-index: 99;
+    }
+
+    .navbar-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 20px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #c084fc, #7c3aed);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+        .navbar-brand i {
+            font-size: 24px;
+            color: #7c3aed;
+        }
+
+    .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: #c084fc;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    .navbar-links {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+
+    .nav-link {
+        text-decoration: none;
+        color: #94a3b8;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s;
+        padding: 8px 0;
+    }
+
+        .nav-link:hover {
+            color: #c084fc;
+        }
+
+        .nav-link.active {
+            color: #c084fc;
+            font-weight: 600;
+            border-bottom: 2px solid #7c3aed;
+        }
+
+    .admin-nav-btn {
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 30px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .admin-nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+        }
+
+    /* Header */
+    .header {
+        padding: 60px 20px 50px;
+        text-align: center;
+    }
+
+    .header-content {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .badge {
+        font-size: 11px;
+        letter-spacing: 4px;
+        color: #c084fc;
+        font-weight: 600;
+        display: inline-block;
+        margin-bottom: 20px;
+    }
+
+    .header h1 {
+        font-size: 64px;
+        font-weight: 700;
+        letter-spacing: -2px;
+        color: #e2e8f0;
+        margin-bottom: 20px;
+    }
+
+    .gradient-text {
+        background: linear-gradient(135deg, #c084fc, #7c3aed);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .divider {
+        width: 70px;
+        height: 3px;
+        background: linear-gradient(90deg, #7c3aed, #c084fc);
+        margin: 0 auto 20px;
+        border-radius: 2px;
+    }
+
+    .header p {
+        font-size: 14px;
+        color: #94a3b8;
+        letter-spacing: 1px;
+    }
+
+    /* Grid Container */
+    .grid-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px 30px 60px;
+    }
+
+    .cabinet-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 25px;
+    }
+
+    /* FIXED: Card styles - no empty space, background matches */
+    .cabinet-card {
+        background: rgba(15, 18, 53, 0.85);
+        backdrop-filter: blur(12px);
+        border-radius: 24px;
+        overflow: hidden;
+        transition: all 0.3s;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(124, 58, 237, 0.3);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+        .cabinet-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 35px rgba(124, 58, 237, 0.25);
+            border-color: #7c3aed;
+            background: rgba(15, 18, 53, 0.95);
+        }
+
+    .card-img {
+        position: relative;
+        width: 100%;
+        height: 260px;
+        overflow: hidden;
+        background: rgba(15, 18, 53, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+        .card-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center;
+            padding: 15px;
+            transition: transform 0.4s;
+            background: transparent;
+        }
+
+    .cabinet-card:hover .card-img img {
+        transform: scale(1.05);
+    }
+
+    .card-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(124, 58, 237, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .cabinet-card:hover .card-overlay {
+        opacity: 1;
+    }
+
+    .card-overlay i {
+        font-size: 35px;
+        color: white;
+    }
+
+    .card-body {
+        padding: 18px;
+        background: transparent;
+        text-align: center;
+        flex: 1;
+    }
+
+        .card-body h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+    .position {
+        font-size: 12px;
+        color: #c084fc;
+        font-weight: 500;
+        margin-bottom: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .card-footer {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+    }
+
+    .details-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        border: none;
+        background: rgba(124, 58, 237, 0.2);
+        color: #c084fc;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .details-btn:hover {
+            background: linear-gradient(135deg, #7c3aed, #c084fc);
+            color: white;
+            transform: translateX(3px);
+        }
+
+    /* Loading & Empty States */
+    .loading-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: #c084fc;
+    }
+
+        .loading-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        background: rgba(15, 18, 53, 0.7);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+    }
+
+        .empty-state i {
+            font-size: 70px;
+            color: #7c3aed;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 22px;
+            color: #e2e8f0;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            color: #94a3b8;
+            margin-bottom: 30px;
+        }
+
+    .add-btn {
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        color: white;
+        border: none;
+        padding: 12px 28px;
+        border-radius: 40px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .add-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+        }
+
+    /* Quick View Modal */
+    .quickview {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
+    }
+
+    .quickview-card {
+        background: linear-gradient(135deg, #0f1235, #0a0e27);
+        border-radius: 28px;
+        max-width: 850px;
+        width: 90%;
+        display: flex;
+        overflow: hidden;
+        position: relative;
+        border: 1px solid rgba(124, 58, 237, 0.4);
+    }
+
+    .quickview-close {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        background: rgba(124, 58, 237, 0.3);
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        color: white;
+        font-size: 22px;
+        cursor: pointer;
+        z-index: 10;
+    }
+
+        .quickview-close:hover {
+            background: linear-gradient(135deg, #7c3aed, #c084fc);
+        }
+
+    .quickview-img {
+        flex: 1;
+        background: linear-gradient(135deg, #7c3aed, #5b21b6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+    }
+
+        .quickview-img img {
+            width: 100%;
+            height: 350px;
+            object-fit: contain;
+            object-position: center;
+            border-radius: 16px;
+            background: #f8f9fa;
+            padding: 10px;
+        }
+
+    .quickview-info {
+        flex: 1;
+        padding: 40px;
+    }
+
+        .quickview-info h2 {
+            font-size: 28px;
+            color: #e2e8f0;
+            margin-bottom: 10px;
+        }
+
+    .quickview-status {
+        display: inline-block;
+        padding: 6px 16px;
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        color: white;
+        border-radius: 30px;
+        font-size: 13px;
+        margin-bottom: 20px;
+    }
+
+    .quickview-info p {
+        color: #94a3b8;
+        line-height: 1.6;
+        margin-bottom: 12px;
+        font-size: 14px;
+    }
+
+    .close-btn {
+        background: none;
+        border: 1px solid #7c3aed;
+        padding: 10px 24px;
+        border-radius: 30px;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 20px;
+        color: #c084fc;
+    }
+
+        .close-btn:hover {
+            background: linear-gradient(135deg, #7c3aed, #c084fc);
+            color: white;
+            border-color: transparent;
+        }
+
+    /* Admin Modal */
+    .admin-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 150;
+    }
+
+    .admin-card {
+        background: linear-gradient(135deg, #0f1235, #0a0e27);
+        border-radius: 28px;
+        width: 500px;
+        max-height: 85vh;
+        overflow-y: auto;
+        position: relative;
+        border: 1px solid rgba(124, 58, 237, 0.4);
+        padding: 20px;
+    }
+
+    .admin-close {
+        position: absolute;
+        top: 18px;
+        right: 22px;
+        background: none;
+        border: none;
+        font-size: 28px;
+        cursor: pointer;
+        color: #94a3b8;
+        z-index: 10;
+    }
+
+        .admin-close:hover {
+            color: #c084fc;
+        }
+
+    .admin-header {
+        text-align: center;
+        padding: 35px 24px 25px;
+        border-bottom: 1px solid rgba(124, 58, 237, 0.3);
+    }
+
+        .admin-header i {
+            font-size: 45px;
+            color: #7c3aed;
+            margin-bottom: 12px;
+        }
+
+        .admin-header h2 {
+            font-size: 22px;
+            color: #e2e8f0;
+        }
+
+    .admin-body {
+        padding: 28px;
+    }
+
+    .input-icon {
+        position: relative;
+        margin-bottom: 18px;
+    }
+
+        .input-icon i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7c3aed;
+        }
+
+        .input-icon input {
+            width: 100%;
+            padding: 12px 12px 12px 42px;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 14px;
+            background: rgba(15, 18, 53, 0.8);
+            color: #e2e8f0;
+        }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 14px;
+            background: rgba(15, 18, 53, 0.8);
+            color: #e2e8f0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+        }
+
+    .upload-content {
+        border: 2px dashed rgba(124, 58, 237, 0.5);
+        border-radius: 14px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .upload-content:hover {
+            border-color: #7c3aed;
+            background: rgba(124, 58, 237, 0.1);
+        }
+
+        .upload-content i {
+            font-size: 28px;
+            color: #c084fc;
+            margin-bottom: 8px;
+        }
+
+        .upload-content span {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+    .image-preview {
+        margin-top: 15px;
+        background: rgba(15, 18, 53, 0.8);
+        border-radius: 14px;
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 160px;
+        position: relative;
+    }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 140px;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+    .admin-image-preview {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+        .admin-image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+    .delete-image {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(0, 0, 0, 0.7);
+        border: none;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        cursor: pointer;
+    }
+
+        .delete-image:hover {
+            background: #ef4444;
+        }
+
+    .save-btn, .login-btn, .cancel-btn, .logout-btn {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        color: white;
+        border: none;
+        border-radius: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 10px;
+        transition: all 0.2s;
+    }
+
+    .cancel-btn {
+        background: #334155;
+    }
+
+    .logout-btn {
+        background: #ef4444;
+        margin-top: 16px;
+    }
+
+    .save-btn:hover, .login-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+    }
+
+    .cancel-btn:hover {
+        background: #475569;
+    }
+
+    .logout-btn:hover {
+        background: #dc2626;
+    }
+
+    .error-msg {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        padding: 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        margin-bottom: 15px;
+        border: 1px solid #ef4444;
+    }
+
+    .divider-line {
+        margin: 25px 0;
+        height: 1px;
+        background: rgba(124, 58, 237, 0.3);
+    }
+
+    .manage-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #c084fc;
+        margin-bottom: 15px;
+    }
+
+    .items-list {
+        max-height: 280px;
+        overflow-y: auto;
+    }
+
+    .no-items {
+        text-align: center;
+        padding: 20px;
+        color: #94a3b8;
+        font-size: 12px;
+    }
+
+    .manage-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        background: rgba(15, 18, 53, 0.8);
+        border-radius: 14px;
+        margin-bottom: 10px;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+    }
+
+    .item-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .item-info strong {
+            font-size: 13px;
+            color: #e2e8f0;
+        }
+
+        .item-info small {
+            font-size: 11px;
+            color: #94a3b8;
+            display: block;
+        }
+
+    .item-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .icon-edit, .icon-delete {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .icon-edit {
+        background: rgba(124, 58, 237, 0.2);
+        color: #c084fc;
+    }
+
+    .icon-delete {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+    }
+
+        .icon-edit:hover, .icon-delete:hover {
+            transform: scale(1.05);
+        }
+
+    .icon-edit:hover {
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        color: white;
+    }
+
+    .icon-delete:hover {
+        background: #ef4444;
+        color: white;
+    }
+
+    .text-muted {
+        color: #94a3b8 !important;
+        font-size: 11px;
+        display: block;
+        margin-top: 5px;
+    }
+
+    /* Responsive */
+    @@media (max-width: 1300px) {
+        .cabinet-grid
+
+    {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    }
+
+    @@media (max-width: 1000px) {
+        .cabinet-grid
+
+    {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .mobile-menu-btn {
+        display: block;
+    }
+
+    .navbar-links {
+        display: none;
+        position: absolute;
+        top: 70px;
+        left: 0;
+        right: 0;
+        background: rgba(8, 12, 26, 0.98);
+        flex-direction: column;
+        padding: 20px;
+        gap: 15px;
+        border-bottom: 1px solid #7c3aed;
+        z-index: 100;
+    }
+
+        .navbar-links.show {
+            display: flex;
+        }
+
+    .nav-link {
+        padding: 8px 0;
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .cabinet-grid
+
+    {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+
+    .header h1 {
+        font-size: 42px;
+    }
+
+    .quickview-card {
+        flex-direction: column;
+    }
+
+    .admin-card {
+        width: 90%;
+    }
+
+    .grid-container {
+        padding: 20px;
+    }
+
+    .navbar-container {
+        padding: 12px 16px;
+    }
+
+    .quickview-img {
+        padding: 20px;
+    }
+
+        .quickview-img img {
+            height: 200px;
+        }
+
+    .quickview-info {
+        padding: 25px;
+    }
+
+        .quickview-info h2 {
+            font-size: 22px;
+        }
+
+    }
+
+    @@media (max-width: 500px) {
+        .cabinet-grid
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-body {
+        padding: 20px;
+    }
+
+    }
+</style>
+
+@code {
+    private LeadershipDAL dal = new LeadershipDAL();
+    private List<Leadership> leadershipMembers = new();
+    private Leadership editMember = new Leadership();
+    private Leadership? selectedMember = null;
+    private bool showModal = false;
+    private bool isAdmin = false;
+    private bool showQuickView = false;
+    private bool isLoading = false;
+    private bool isSaving = false;
+    private bool mobileMenuOpen = false;
+    private string username = "";
+    private string password = "";
+    private string error = "";
+    private string editError = "";
+    private string uploadPath => Path.Combine(env.WebRootPath, "uploads");
+
+    private void ToggleMobileMenu() => mobileMenuOpen = !mobileMenuOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        try
+        {
+            Directory.CreateDirectory(uploadPath);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to load data: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadData()
+    {
+        await Task.Run(() =>
+        {
+            leadershipMembers = dal.GetAll();
+        });
+        StateHasChanged();
+    }
+
+    private void OpenModal() => showModal = true;
+
+    private void CloseModal()
+    {
+        showModal = false;
+        editMember = new Leadership();
+        username = "";
+        password = "";
+        error = "";
+        editError = "";
+        isSaving = false;
+    }
+
+    private async Task EnterLogin(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await Login();
+        }
+    }
+
+    private async Task Login()
+    {
+        await Task.Delay(1);
+        if (username == "admin" && password == "admin123")
+        {
+            isAdmin = true;
+            error = "";
+        }
+        else
+        {
+            error = "Invalid credentials. Use admin/admin123";
+        }
+        StateHasChanged();
+    }
+
+    private void Logout()
+    {
+        isAdmin = false;
+        editMember = new Leadership();
+        editError = "";
+        CloseModal();
+    }
+
+    private async Task UploadImage(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            if (file == null) return;
+
+            var fileName = Guid.NewGuid() + Path.GetExtension(file.Name);
+            var fullPath = Path.Combine(uploadPath, fileName);
+
+            await using var stream = file.OpenReadStream(5 * 1024 * 1024);
+            await using var fs = new FileStream(fullPath, FileMode.Create);
+            await stream.CopyToAsync(fs);
+
+            editMember.ProfilePicture = "/uploads/" + fileName;
+            editError = "";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            editError = $"Upload failed: {ex.Message}";
+        }
+    }
+
+    private void DeleteImage()
+    {
+        editMember.ProfilePicture = "";
+    }
+
+    private async Task Save()
+    {
+        if (!isAdmin) return;
+
+        if (string.IsNullOrWhiteSpace(editMember.Name))
+        {
+            editError = "Name is required";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(editMember.Status))
+        {
+            editError = "Status/Position is required";
+            return;
+        }
+
+        isSaving = true;
+        editError = "";
+
+        try
+        {
+            await Task.Run(() =>
+            {
+                if (string.IsNullOrEmpty(editMember.Id))
+                {
+                    // ✅ Let MongoDB handle Id
+                    dal.Add(editMember);
+                }
+                else
+                {
+                    dal.Update(editMember);
+                }
+            });
+
+            await LoadData();
+            CloseModal(); // leadership UI uses modal reset
+        }
+        catch (Exception ex)
+        {
+            editError = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void LoadEdit(Leadership member)
+    {
+        editMember = new Leadership
+        {
+            Id = member.Id,
+            Name = member.Name,
+            Status = member.Status,
+            ProfilePicture = member.ProfilePicture,
+            Experiences = member.Experiences,
+            Message = member.Message
+        };
+        editError = "";
+    }
+
+    private void CancelEdit()
+    {
+        editMember = new Leadership();
+        editError = "";
+    }
+
+    private async Task Delete(Leadership member)
+    {
+        if (!isAdmin) return;
+
+        var confirmed = await jsRuntime.InvokeAsync<bool>("confirm", $"Delete {member.Name}?");
+
+        if (confirmed)
+        {
+            await Task.Run(() => dal.Delete(member.Id));
+            await LoadData();
+            if (editMember.Id == member.Id)
+            {
+                CancelEdit();
+            }
+        }
+    }
+
+    private void QuickView(Leadership member)
+    {
+        selectedMember = member;
+        showQuickView = true;
+    }
+
+    private void CloseQuickView()
+    {
+        showQuickView = false;
+        selectedMember = null;
+    }
+}

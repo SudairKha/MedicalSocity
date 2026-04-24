@@ -1,0 +1,12 @@
+[
+  {
+    "Id": 2,
+    "ObjectiveName": "Community Health",
+    "Description": "Improve healthcare access in underserved communities"
+  },
+  {
+    "Id": 3,
+    "ObjectiveName": "Research Excellence",
+    "Description": "Foster innovative medical research"
+  }
+]

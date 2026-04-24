@@ -1,0 +1,1451 @@
+﻿@page "/annualgathering"
+@using Entities
+@using DAL
+@using Microsoft.AspNetCore.Components.Forms
+@inject IWebHostEnvironment env
+@inject IJSRuntime jsRuntime
+@rendermode InteractiveServer
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<div class="main-navbar">
+    <div class="navbar-container">
+        <div class="navbar-brand">
+            <i class="bi bi-hospital-fill"></i>
+            <span>Medical Society</span>
+        </div>
+        <button class="mobile-menu-btn" @onclick="ToggleMobileMenu">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="navbar-links @(mobileMenuOpen ? "show" : "")">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/leadership" class="nav-link">Leadership</a>
+            <a href="/cabinet" class="nav-link">Cabinet</a>
+            <a href="/annualprogram" class="nav-link">Annual Programs</a>
+            <a href="/annualgathering" class="nav-link active">Annual Gathering</a>
+            <a href="/past-presidents" class="nav-link">Past Presidents</a>
+            <a href="/objectives" class="nav-link">Objectives</a>
+        </div>
+        <button class="admin-nav-btn" @onclick="OpenModal">
+            <i class="bi bi-shield-lock-fill"></i> Admin
+        </button>
+    </div>
+</div>
+
+<div class="app">
+    <div class="hero">
+        <div class="hero-content">
+            <span class="hero-tag">✦ A N N U A L  G A T H E R I N G ✦</span>
+            <h1 class="hero-title">annual <span class="highlight">gathering</span></h1>
+            <div class="hero-line"></div>
+            <p class="hero-desc">celebrating excellence and togetherness</p>
+        </div>
+    </div>
+
+    <div class="stats-container">
+        <div class="stat-card">
+            <div class="stat-number">@(gatherings?.Count ?? 0)</div>
+            <div class="stat-label">Total Events</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">@(gatherings?.Count(x => x.Status == "Upcoming") ?? 0)</div>
+            <div class="stat-label">Upcoming</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">@(gatherings?.Count(x => x.Status == "Past") ?? 0)</div>
+            <div class="stat-label">Past Events</div>
+        </div>
+    </div>
+
+    <div class="search-container">
+        <div class="search-bar">
+            <i class="fas fa-search"></i>
+            <input type="text" @bind="searchTerm" @bind:event="oninput" placeholder="search by president name or venue..." />
+            @if (!string.IsNullOrEmpty(searchTerm))
+            {
+                <button class="search-clear" @onclick="() => searchTerm = string.Empty">
+                    <i class="fas fa-times"></i>
+                </button>
+            }
+        </div>
+        <div class="search-count">@FilteredGatherings.Count() events found</div>
+    </div>
+
+    <div class="cards-container">
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>loading gatherings...</p>
+            </div>
+        }
+        else if (gatherings == null || !gatherings.Any())
+        {
+            <div class="empty">
+                <i class="fas fa-calendar-alt"></i>
+                <p>no gatherings yet</p>
+                <button class="empty-btn" @onclick="OpenModal">add first gathering</button>
+            </div>
+        }
+        else if (!FilteredGatherings.Any())
+        {
+            <div class="empty">
+                <i class="fas fa-search"></i>
+                <p>no matching events found</p>
+                <button class="empty-btn" @onclick="() => searchTerm = string.Empty">clear search</button>
+            </div>
+        }
+        else
+        {
+            // Upcoming Section
+            if (FilteredGatherings.Any(x => x.Status == "Upcoming"))
+            {
+                <div class="section-title">
+                    <i class="fas fa-calendar-week"></i>
+                    Upcoming Gatherings
+                    <span class="badge">@FilteredGatherings.Count(x => x.Status == "Upcoming")</span>
+                </div>
+                <div class="cards-grid">
+                    @foreach (var gathering in FilteredGatherings.Where(x => x.Status == "Upcoming").OrderBy(x => x.Id))
+                    {
+                        <div class="card" @onclick="() => QuickView(gathering)">
+                            <div class="card-image">
+                                <img src="@(string.IsNullOrEmpty(gathering.ImagePath) ? "https://via.placeholder.com/300x300?text=Event" : gathering.ImagePath)"
+                                     alt="@gathering.PresidentName"
+                                     onerror="this.src='https://via.placeholder.com/300x300?text=No+Image'" />
+                            </div>
+                            <div class="card-info">
+                                <h3>@gathering.PresidentName</h3>
+                                <p class="venue"><i class="fas fa-location-dot"></i> @gathering.Venue</p>
+                                <span class="status-badge status-upcoming">Upcoming</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            // Past Section
+            if (FilteredGatherings.Any(x => x.Status == "Past"))
+            {
+                <div class="section-title past-title">
+                    <i class="fas fa-history"></i>
+                    Past Gatherings
+                    <span class="badge past-badge">@FilteredGatherings.Count(x => x.Status == "Past")</span>
+                </div>
+                <div class="cards-grid">
+                    @foreach (var gathering in FilteredGatherings.Where(x => x.Status == "Past").OrderByDescending(x => x.Id))
+                    {
+                        <div class="card" @onclick="() => QuickView(gathering)">
+                            <div class="card-image">
+                                <img src="@(string.IsNullOrEmpty(gathering.ImagePath) ? "https://via.placeholder.com/300x300?text=Event" : gathering.ImagePath)"
+                                     alt="@gathering.PresidentName"
+                                     onerror="this.src='https://via.placeholder.com/300x300?text=No+Image'" />
+                            </div>
+                            <div class="card-info">
+                                <h3>@gathering.PresidentName</h3>
+                                <p class="venue"><i class="fas fa-location-dot"></i> @gathering.Venue</p>
+                                <span class="status-badge status-past">Past</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<!-- Quick View Modal -->
+@if (showQuickView && selectedGathering != null)
+{
+    <div class="quickview" @onclick="CloseQuickView">
+        <div class="quickview-card" @onclick:stopPropagation="true">
+            <button class="quickview-close" @onclick="CloseQuickView">×</button>
+            <div class="quickview-img">
+                <img src="@selectedGathering.ImagePath" alt="@selectedGathering.PresidentName" />
+            </div>
+            <div class="quickview-info text-center">
+                <h2>@selectedGathering.PresidentName</h2>
+                <div class="venue-tag"><i class="fas fa-location-dot"></i> @selectedGathering.Venue</div>
+                <div class="status-tag @(selectedGathering.Status == "Upcoming" ? "status-upcoming" : "status-past")">@selectedGathering.Status</div>
+                @if (!string.IsNullOrEmpty(selectedGathering.Description))
+                {
+                    <p class="description">@selectedGathering.Description</p>
+                }
+                <button class="close-btn" @onclick="CloseQuickView">Close</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Admin Modal -->
+@if (showModal)
+{
+    <div class="admin-modal" @onclick="CloseModal">
+        <div class="admin-card" @onclick:stopPropagation="true">
+            <button class="admin-close" @onclick="CloseModal">×</button>
+
+            @if (!isAdmin)
+            {
+                <div class="admin-header text-center">
+                    <i class="fas fa-lock"></i>
+                    <h2>Admin Access</h2>
+                </div>
+                <div class="admin-body">
+                    <div class="input-icon">
+                        <i class="fas fa-user"></i>
+                        <input type="text" @bind="username" placeholder="Username" />
+                    </div>
+                    <div class="input-icon">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" @bind="password" placeholder="Password" @onkeypress="EnterLogin" />
+                    </div>
+                    @if (!string.IsNullOrEmpty(error))
+                    {
+                        <div class="error-msg">@error</div>
+                    }
+                    <button class="login-btn" @onclick="Login">Login</button>
+                </div>
+            }
+            else
+            {
+                <div class="admin-header text-center">
+                    <i class="fas fa-sliders-h"></i>
+                    <h2>Gathering Management</h2>
+                </div>
+                <div class="admin-body">
+                    @if (!string.IsNullOrEmpty(editError))
+                    {
+                        <div class="error-msg">@editError</div>
+                    }
+
+                    <div class="form-group">
+                        <label>President Name *</label>
+                        <input type="text" @bind="editGathering.PresidentName" placeholder="e.g., Dr. John Smith" />
+                    </div>
+                    <div class="form-group">
+                        <label>Venue *</label>
+                        <input type="text" @bind="editGathering.Venue" placeholder="e.g., Grand Convention Center, New York" />
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select @bind="editGathering.Status">
+                            <option value="Upcoming">Upcoming</option>
+                            <option value="Past">Past</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea @bind="editGathering.Description" rows="3" placeholder="Event description..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Event Image</label>
+                        <div class="upload-box">
+                            <InputFile OnChange="UploadImage" />
+                            <div class="upload-content text-center">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <span>Click to upload photo</span>
+                            </div>
+                        </div>
+                        <small class="text-muted">✓ Image will show full image without cropping</small>
+                    </div>
+                    @if (!string.IsNullOrEmpty(editGathering.ImagePath))
+                    {
+                        <div class="image-preview text-center">
+                            <img src="@editGathering.ImagePath" alt="Preview" />
+                            <button class="delete-image" @onclick="DeleteImage" type="button">Remove</button>
+                        </div>
+                    }
+
+                    <button class="save-btn" @onclick="Save" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <i class="fas fa-spinner fa-spin"></i>
+                        }
+                        else
+                        {
+                            <i class="fas fa-save"></i>
+                        }
+                        @(string.IsNullOrEmpty(editGathering.Id) ? "Add Gathering" : "Update Gathering")
+                    </button>
+
+                    @if (!string.IsNullOrEmpty(editGathering.Id))
+                    {
+                        <button class="cancel-btn" @onclick="CancelEdit">Cancel Edit</button>
+                    }
+
+                    <hr />
+
+                    <div class="manage-header">
+                        <i class="fas fa-list"></i>
+                        <span>Manage Gatherings (@(gatherings?.Count ?? 0))</span>
+                    </div>
+                    <div class="items-list">
+                        @if (gatherings == null || !gatherings.Any())
+                        {
+                            <div class="no-items">No gatherings yet</div>
+                        }
+                        else
+                        {
+                            @foreach (var gathering in gatherings)
+                            {
+                                <div class="manage-item">
+                                    <div class="item-info">
+                                        <div class="admin-image-preview">
+                                            <img src="@(string.IsNullOrEmpty(gathering.ImagePath) ? "https://via.placeholder.com/40" : gathering.ImagePath)"
+                                                 alt="@gathering.PresidentName" />
+                                        </div>
+                                        <div>
+                                            <strong>@gathering.PresidentName</strong>
+                                            <small>@gathering.Venue</small>
+                                        </div>
+                                    </div>
+                                    <div class="item-actions">
+                                        <button class="icon-edit" @onclick="() => LoadEdit(gathering)">Edit</button>
+                                        <button class="icon-delete" @onclick="() => Delete(gathering)">Delete</button>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    <button class="logout-btn" @onclick="Logout">Logout</button>
+                </div>
+            }
+            <button class="close-modal-btn" @onclick="CloseModal">Close</button>
+        </div>
+    </div>
+}
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: linear-gradient(135deg, #0a0e27 0%, #0f1235 100%);
+        min-height: 100vh;
+    }
+
+    /* Navbar */
+    .main-navbar {
+        background: rgba(8, 12, 26, 0.95);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(124, 58, 237, 0.3);
+        position: sticky;
+        top: 0;
+        z-index: 99;
+    }
+
+    .navbar-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 20px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #c084fc, #7c3aed);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+        .navbar-brand i {
+            font-size: 24px;
+            color: #7c3aed;
+        }
+
+    .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: #c084fc;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    .navbar-links {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+
+    .nav-link {
+        text-decoration: none;
+        color: #94a3b8;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s;
+        padding: 8px 0;
+    }
+
+        .nav-link:hover {
+            color: #c084fc;
+        }
+
+        .nav-link.active {
+            color: #c084fc;
+            font-weight: 600;
+            border-bottom: 2px solid #7c3aed;
+        }
+
+    .admin-nav-btn {
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 30px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .admin-nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+        }
+
+    /* Hero */
+    .hero {
+        padding: 60px 20px 40px;
+        text-align: center;
+    }
+
+    .hero-tag {
+        font-size: 11px;
+        letter-spacing: 4px;
+        color: #c084fc;
+        display: inline-block;
+        margin-bottom: 20px;
+    }
+
+    .hero-title {
+        font-size: 56px;
+        font-weight: 700;
+        color: #e2e8f0;
+        margin-bottom: 20px;
+    }
+
+        .hero-title .highlight {
+            background: linear-gradient(135deg, #c084fc, #7c3aed);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+    .hero-line {
+        width: 70px;
+        height: 3px;
+        background: linear-gradient(90deg, #7c3aed, #c084fc);
+        margin: 0 auto 20px;
+        border-radius: 3px;
+    }
+
+    .hero-desc {
+        font-size: 14px;
+        color: #94a3b8;
+    }
+
+    /* Stats */
+    .stats-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .stat-card {
+        background: rgba(15, 18, 53, 0.7);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 20px 40px;
+        text-align: center;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #c084fc, #7c3aed);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .stat-label {
+        color: #94a3b8;
+        font-size: 0.8rem;
+        margin-top: 5px;
+    }
+
+    /* Search */
+    .search-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 20px 20px;
+    }
+
+    .search-bar {
+        position: relative;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+        .search-bar i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7c3aed;
+            font-size: 14px;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 12px 35px 12px 42px;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 40px;
+            background: rgba(15, 18, 53, 0.8);
+            color: #e2e8f0;
+            font-size: 13px;
+        }
+
+            .search-bar input:focus {
+                outline: none;
+                border-color: #7c3aed;
+                box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+            }
+
+            .search-bar input::placeholder {
+                color: #64748b;
+            }
+
+    .search-clear {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #94a3b8;
+        cursor: pointer;
+    }
+
+        .search-clear:hover {
+            color: #c084fc;
+        }
+
+    .search-count {
+        text-align: center;
+        font-size: 12px;
+        color: #94a3b8;
+        margin-top: 10px;
+    }
+
+    /* Section Titles */
+    .section-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #c084fc;
+        margin: 30px 0 20px 0;
+        padding-bottom: 10px;
+        border-bottom: 2px solid rgba(124, 58, 237, 0.3);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .section-title i {
+            font-size: 24px;
+        }
+
+        .section-title .badge {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+    .past-title .badge {
+        background: linear-gradient(135deg, #6b7280, #4b5563);
+    }
+
+    /* Cards Container */
+    .cards-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px 20px 60px;
+    }
+
+    .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 25px;
+    }
+
+    .loading-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: #c084fc;
+    }
+
+        .loading-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+    /* Card Styles */
+    .card {
+        background: rgba(15, 18, 53, 0.85);
+        backdrop-filter: blur(12px);
+        border-radius: 24px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(124, 58, 237, 0.3);
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+        .card:hover {
+            transform: translateY(-8px);
+            border-color: #7c3aed;
+            box-shadow: 0 20px 35px rgba(124, 58, 237, 0.25);
+            background: rgba(15, 18, 53, 0.95);
+        }
+
+    .card-image {
+        width: 100%;
+        height: 240px;
+        background: rgba(15, 18, 53, 0.85);
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 15px;
+            transition: transform 0.3s ease;
+            background: transparent;
+        }
+
+    .card:hover .card-image img {
+        transform: scale(1.05);
+    }
+
+    .card-info {
+        padding: 16px;
+        text-align: center;
+        background: transparent;
+        flex: 1;
+    }
+
+        .card-info h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+    .venue {
+        font-size: 12px;
+        color: #94a3b8;
+        margin-bottom: 10px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+        .venue i {
+            margin-right: 4px;
+            color: #7c3aed;
+        }
+
+    .status-badge {
+        display: inline-block;
+        font-size: 11px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .status-upcoming {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border: 1px solid #10b981;
+    }
+
+    .status-past {
+        background: rgba(107, 114, 128, 0.2);
+        color: #9ca3af;
+        border: 1px solid #6b7280;
+    }
+
+    /* Empty State */
+    .empty {
+        text-align: center;
+        padding: 80px 20px;
+        background: rgba(15, 18, 53, 0.7);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+        color: #94a3b8;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+    }
+
+        .empty i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: #7c3aed;
+        }
+
+        .empty p {
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+    .empty-btn {
+        background: none;
+        border: 1px solid #7c3aed;
+        padding: 10px 28px;
+        border-radius: 40px;
+        font-size: 13px;
+        color: #c084fc;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .empty-btn:hover {
+            background: linear-gradient(135deg, #7c3aed, #c084fc);
+            color: white;
+            border-color: transparent;
+            transform: translateY(-2px);
+        }
+
+    /* Quick View */
+    .quickview {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
+    }
+
+    .quickview-card {
+        background: linear-gradient(135deg, #0f1235, #0a0e27);
+        border-radius: 28px;
+        max-width: 450px;
+        width: 90%;
+        padding: 30px;
+        text-align: center;
+        border: 1px solid rgba(124, 58, 237, 0.4);
+        position: relative;
+    }
+
+    .quickview-close {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        background: rgba(124, 58, 237, 0.3);
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .quickview-close:hover {
+            background: #7c3aed;
+        }
+
+    .quickview-img img {
+        width: 150px;
+        height: 150px;
+        object-fit: contain;
+        border-radius: 50%;
+        margin: 20px auto;
+        border: 3px solid #7c3aed;
+        padding: 5px;
+        background: #f8f9fa;
+    }
+
+    .quickview-info h2 {
+        color: #e2e8f0;
+        margin-bottom: 10px;
+        font-size: 24px;
+    }
+
+    .venue-tag {
+        color: #94a3b8;
+        margin-bottom: 10px;
+        font-size: 14px;
+    }
+
+        .venue-tag i {
+            color: #7c3aed;
+            margin-right: 5px;
+        }
+
+    .status-tag {
+        display: inline-block;
+        padding: 4px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        margin-bottom: 15px;
+    }
+
+    .description {
+        color: #94a3b8;
+        font-size: 13px;
+        line-height: 1.5;
+        margin-top: 10px;
+    }
+
+    .close-btn {
+        background: none;
+        border: 1px solid #7c3aed;
+        padding: 10px 30px;
+        border-radius: 30px;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 20px;
+        color: #c084fc;
+    }
+
+        .close-btn:hover {
+            background: linear-gradient(135deg, #7c3aed, #c084fc);
+            color: white;
+            border-color: transparent;
+        }
+
+    /* Admin Modal */
+    .admin-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 150;
+    }
+
+    .admin-card {
+        background: linear-gradient(135deg, #0f1235, #0a0e27);
+        border-radius: 28px;
+        width: 500px;
+        max-height: 85vh;
+        overflow-y: auto;
+        border: 1px solid rgba(124, 58, 237, 0.4);
+        padding: 20px;
+    }
+
+    .admin-close {
+        float: right;
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #94a3b8;
+        cursor: pointer;
+    }
+
+        .admin-close:hover {
+            color: #c084fc;
+        }
+
+    .admin-header {
+        text-align: center;
+        margin-bottom: 20px;
+        padding-top: 10px;
+    }
+
+        .admin-header i {
+            font-size: 45px;
+            color: #7c3aed;
+            margin-bottom: 10px;
+        }
+
+        .admin-header h2 {
+            color: #e2e8f0;
+            font-size: 22px;
+        }
+
+    .admin-body {
+        clear: both;
+    }
+
+    .input-icon {
+        position: relative;
+        margin-bottom: 15px;
+    }
+
+        .input-icon i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7c3aed;
+        }
+
+        .input-icon input {
+            width: 100%;
+            padding: 12px 12px 12px 40px;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 14px;
+            background: rgba(15, 18, 53, 0.8);
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+
+            .input-icon input:focus {
+                outline: none;
+                border-color: #7c3aed;
+            }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 14px;
+            background: rgba(15, 18, 53, 0.8);
+            color: #e2e8f0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+        }
+
+    .upload-content {
+        border: 2px dashed rgba(124, 58, 237, 0.5);
+        border-radius: 14px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .upload-content:hover {
+            border-color: #7c3aed;
+            background: rgba(124, 58, 237, 0.1);
+        }
+
+        .upload-content i {
+            font-size: 28px;
+            color: #c084fc;
+            margin-bottom: 8px;
+        }
+
+        .upload-content span {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+    .image-preview {
+        margin-top: 10px;
+        text-align: center;
+    }
+
+        .image-preview img {
+            max-width: 100px;
+            max-height: 100px;
+            object-fit: contain;
+            border-radius: 10px;
+        }
+
+    .delete-image {
+        background: #ef4444;
+        border: none;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-top: 8px;
+        font-size: 11px;
+    }
+
+        .delete-image:hover {
+            background: #dc2626;
+        }
+
+    .save-btn, .login-btn, .cancel-btn, .logout-btn, .close-modal-btn {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #7c3aed, #c084fc);
+        color: white;
+        border: none;
+        border-radius: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 10px;
+        transition: all 0.2s;
+    }
+
+        .save-btn:hover, .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+        }
+
+    .cancel-btn {
+        background: #334155;
+    }
+
+        .cancel-btn:hover {
+            background: #475569;
+        }
+
+    .logout-btn, .close-modal-btn {
+        background: #ef4444;
+    }
+
+        .logout-btn:hover, .close-modal-btn:hover {
+            background: #dc2626;
+        }
+
+    .error-msg {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        padding: 10px;
+        border-radius: 12px;
+        font-size: 13px;
+        margin-bottom: 15px;
+        border: 1px solid #ef4444;
+    }
+
+    .manage-header {
+        margin: 15px 0;
+        color: #c084fc;
+        font-weight: 600;
+    }
+
+        .manage-header i {
+            margin-right: 8px;
+        }
+
+    .items-list {
+        max-height: 280px;
+        overflow-y: auto;
+    }
+
+    .no-items {
+        text-align: center;
+        padding: 20px;
+        color: #94a3b8;
+        font-size: 12px;
+    }
+
+    .manage-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        background: rgba(15, 18, 53, 0.8);
+        border-radius: 14px;
+        margin-bottom: 10px;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+    }
+
+        .manage-item:hover {
+            background: rgba(124, 58, 237, 0.1);
+        }
+
+    .item-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .item-info strong {
+            font-size: 13px;
+            color: #e2e8f0;
+        }
+
+        .item-info small {
+            font-size: 11px;
+            color: #94a3b8;
+            display: block;
+        }
+
+    .admin-image-preview {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .admin-image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+    .icon-edit, .icon-delete {
+        background: none;
+        border: none;
+        color: #c084fc;
+        cursor: pointer;
+        margin-left: 8px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .icon-delete {
+        color: #f87171;
+    }
+
+    .icon-edit:hover {
+        background: rgba(124, 58, 237, 0.2);
+    }
+
+    .icon-delete:hover {
+        background: rgba(239, 68, 68, 0.2);
+    }
+
+    .text-muted {
+        color: #94a3b8 !important;
+        font-size: 11px;
+        display: block;
+        margin-top: 5px;
+    }
+
+    hr {
+        border-color: rgba(124, 58, 237, 0.3);
+        margin: 15px 0;
+    }
+
+    /* Responsive */
+    @@media (max-width: 1200px) {
+        .cards-grid
+
+    {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+
+    }
+
+    @@media (max-width: 1000px) {
+        .cards-grid
+
+    {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .mobile-menu-btn {
+        display: block;
+    }
+
+    .navbar-links {
+        display: none;
+        position: absolute;
+        top: 70px;
+        left: 0;
+        right: 0;
+        background: rgba(8, 12, 26, 0.98);
+        flex-direction: column;
+        padding: 20px;
+        gap: 15px;
+        border-bottom: 1px solid #7c3aed;
+        z-index: 100;
+    }
+
+        .navbar-links.show {
+            display: flex;
+        }
+
+    .nav-link {
+        padding: 8px 0;
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .cards-grid
+
+    {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+
+    .hero-title {
+        font-size: 40px;
+    }
+
+    .admin-card {
+        width: 95%;
+    }
+
+    .navbar-container {
+        padding: 12px 16px;
+    }
+
+    .stat-card {
+        padding: 15px 25px;
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+    }
+
+    .section-title {
+        font-size: 20px;
+    }
+
+    }
+
+    @@media (max-width: 480px) {
+        .cards-grid
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    }
+</style>
+
+@code {
+    private AnnualGatheringDAL dal = new AnnualGatheringDAL();
+    private List<AnnualGathering> gatherings = new();
+    private AnnualGathering editGathering = new AnnualGathering();
+    private AnnualGathering? selectedGathering = null;
+    private bool showModal = false;
+    private bool isAdmin = false;
+    private bool showQuickView = false;
+    private bool isLoading = false;
+    private bool isSaving = false;
+    private bool mobileMenuOpen = false;
+    private string username = "";
+    private string password = "";
+    private string error = "";
+    private string editError = "";
+    private string searchTerm = "";
+
+    private IEnumerable<AnnualGathering> FilteredGatherings => gatherings?.Where(x =>
+        string.IsNullOrEmpty(searchTerm) ||
+        x.PresidentName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+        (x.Venue != null && x.Venue.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))) ?? new List<AnnualGathering>();
+
+    private string uploadPath => Path.Combine(env.WebRootPath, "uploads");
+
+    private void ToggleMobileMenu() => mobileMenuOpen = !mobileMenuOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        try
+        {
+            Directory.CreateDirectory(uploadPath);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to load data: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadData()
+    {
+        await Task.Run(() => { gatherings = dal.GetAll(); });
+        StateHasChanged();
+    }
+
+    private void OpenModal() => showModal = true;
+    private void CloseModal() => showModal = false;
+
+    private async Task EnterLogin(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Login();
+    }
+
+    private async Task Login()
+    {
+        await Task.Delay(1);
+        if (username == "admin" && password == "admin123")
+        {
+            isAdmin = true;
+            error = "";
+        }
+        else
+        {
+            error = "Invalid credentials. Use admin/admin123";
+        }
+        StateHasChanged();
+    }
+
+    private void Logout()
+    {
+        isAdmin = false;
+        editGathering = new AnnualGathering();
+        editError = "";
+        CloseModal();
+    }
+
+    private async Task UploadImage(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            if (file == null) return;
+            var fileName = Guid.NewGuid() + Path.GetExtension(file.Name);
+            var fullPath = Path.Combine(uploadPath, fileName);
+            await using var stream = file.OpenReadStream(5 * 1024 * 1024);
+            await using var fs = new FileStream(fullPath, FileMode.Create);
+            await stream.CopyToAsync(fs);
+            editGathering.ImagePath = "/uploads/" + fileName;
+            editError = "";
+            StateHasChanged();
+        }
+        catch (Exception ex) { editError = $"Upload failed: {ex.Message}"; }
+    }
+
+    private void DeleteImage() { editGathering.ImagePath = ""; }
+
+    private async Task Save()
+    {
+        if (!isAdmin) return;
+
+        if (string.IsNullOrWhiteSpace(editGathering.PresidentName))
+        {
+            editError = "President name is required";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(editGathering.Venue))
+        {
+            editError = "Venue is required";
+            return;
+        }
+
+        isSaving = true;
+        editError = "";
+
+        try
+        {
+            await Task.Run(() =>
+            {
+                // NEW RECORD
+                if (string.IsNullOrEmpty(editGathering.Id))
+                {
+                    editGathering.Id = null;   // 🔥 IMPORTANT FIX
+                    dal.Add(editGathering);
+                }
+                // UPDATE
+                else
+                {
+                    dal.Update(editGathering);
+                }
+            });
+
+            await LoadData();
+
+            // reset form
+            editGathering = new AnnualGathering();
+        }
+        catch (Exception ex)
+        {
+            editError = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void LoadEdit(AnnualGathering gathering)
+    {
+        editGathering = new AnnualGathering
+        {
+            Id = gathering.Id,
+            PresidentName = gathering.PresidentName,
+            Venue = gathering.Venue,
+            Status = gathering.Status,
+            Description = gathering.Description,
+            ImagePath = gathering.ImagePath
+        };
+        editError = "";
+    }
+
+    private void CancelEdit() { editGathering = new AnnualGathering(); editError = ""; }
+
+    private async Task Delete(AnnualGathering gathering)
+    {
+        if (!isAdmin) return;
+        var confirmed = await jsRuntime.InvokeAsync<bool>("confirm", $"Delete gathering for {gathering.PresidentName}?");
+        if (confirmed)
+        {
+            await Task.Run(() => dal.Delete(gathering.Id));
+            await LoadData();
+            if (editGathering.Id == gathering.Id) CancelEdit();
+        }
+    }
+
+    private void QuickView(AnnualGathering gathering) { selectedGathering = gathering; showQuickView = true; }
+    private void CloseQuickView() { showQuickView = false; selectedGathering = null; }
+}
